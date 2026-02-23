@@ -52,3 +52,14 @@ def test_wasserstein_distance_diagonal_matching_one_empty_diagram():
     d = wasserstein_distance(x, y, p=2.0, q=2.0)
     assert torch.isfinite(d)
     assert torch.allclose(d, torch.sqrt(torch.tensor(2.0)), atol=1e-6)
+
+
+def test_wasserstein_distance_both_empty_returns_zero_scalar():
+    x = torch.empty((0, 2), dtype=torch.float32)
+    y = torch.empty((0, 2), dtype=torch.float32)
+
+    d = wasserstein_distance(x, y, p=2.0, q=2.0)
+    assert d.ndim == 0
+    assert d.dtype == x.dtype
+    assert d.device == x.device
+    assert torch.equal(d, torch.zeros((), dtype=x.dtype, device=x.device))

@@ -38,3 +38,34 @@ def test_compute_ph_torch_preserves_input_grad_dtype():
 
     assert arr.grad is not None
     assert arr.grad.dtype == arr.dtype
+
+
+def test_vietoris_rips_complex_torch_backward_finite_lifetimes():
+    pytest.importorskip("gudhi")
+    from cripser.rips_utils import VietorisRipsComplex
+
+    points = torch.tensor(
+        [
+            [0.0, 0.0],
+            [1.0, 0.0],
+            [0.0, 1.0],
+            [1.0, 1.0],
+        ],
+        dtype=torch.float64,
+        requires_grad=True,
+    )
+
+    vr = VietorisRipsComplex(max_dimension=1, max_edge_length=2.0)
+    ph = vr(points)
+
+    assert ph.ndim == 2
+    assert ph.shape[1] == 9
+    assert ph.dtype == points.dtype
+
+    loss = finite_lifetimes(ph, dim=0).sum() + finite_lifetimes(ph, dim=1).sum()
+    loss.backward()
+
+    assert points.grad is not None
+    assert points.grad.dtype == points.dtype
+    assert torch.isfinite(points.grad).all()
+    assert torch.linalg.vector_norm(points.grad).item() > 0.0

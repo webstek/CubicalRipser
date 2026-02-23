@@ -115,6 +115,9 @@ def wasserstein_distance(
 
     n = x_points.shape[0]
     m = y_points.shape[0]
+    if n == 0 and m == 0:
+        return torch.zeros((), dtype=x_points.dtype, device=x_points.device)
+
     cost_matrix = torch.zeros(
         (n + 1, m + 1),
         dtype=common_dtype,
