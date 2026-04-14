@@ -17,6 +17,7 @@ with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include <vector>
 #include <cstdint>
 #include <algorithm>
+#include <chrono>
 #include "cube.h"
 #include "dense_cubical_grids.h"
 #include "coboundary_enumerator.h"
@@ -33,6 +34,7 @@ JointPairs::JointPairs(DenseCubicalGrids* _dcg, vector<WritePairs>& _wp, Config&
 
 // Enumerate all edges based on given types
 void JointPairs::enum_edges(const vector<uint8_t>& types, vector<Cube>& ctr) {
+    using FClock = std::chrono::high_resolution_clock;
     ctr.clear();
     const size_t max_edges =
         static_cast<size_t>(types.size()) *
@@ -45,6 +47,7 @@ void JointPairs::enum_edges(const vector<uint8_t>& types, vector<Cube>& ctr) {
     ctr.reserve(reserve_target);
     const double threshold = config->threshold;
     // Iterate over each type (order of loops matters for performance)
+    auto t_enum_start = FClock::now();
     for (const auto& m : types) {
         for (uint32_t w = 0; w < dcg->aw; ++w) {
             for (uint32_t z = 0; z < dcg->az; ++z) {
@@ -60,8 +63,18 @@ void JointPairs::enum_edges(const vector<uint8_t>& types, vector<Cube>& ctr) {
             }
         }
     }
+    auto t_enum_end = FClock::now();
     // Sort the cubes based on birth values
+    auto t_sort_start = FClock::now();
     std::sort(ctr.begin(), ctr.end(), CubeComparator());
+    auto t_sort_end = FClock::now();
+    if (config->filtration_only) {
+        double enum_ms = std::chrono::duration<double, std::milli>(t_enum_end - t_enum_start).count();
+        double sort_ms = std::chrono::duration<double, std::milli>(t_sort_end - t_sort_start).count();
+        cout << "TIMING: dim=1 enum_ms=" << enum_ms
+             << " sort_ms=" << sort_ms
+             << " cells=" << ctr.size() << endl;
+    }
 }
 
 // Compute H_0 by union-find

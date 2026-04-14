@@ -66,6 +66,7 @@ void print_usage() {
               << "  --cache_size, -c    maximum number of reduced columns to be cached\n"
               << "  --output, -o        name of the output file\n"
               << "  --print, -p         print persistence pairs on console\n"
+              << "  --filtration-only   compute and sort filtration only; print timings and exit\n"
               << "  --top_dim          compute only for top dimension using Alexander duality\n"
               << "  --embedded, -e      Take the Alexander dual\n"
               << "  --location, -l      whether creator/destroyer location is included in the output:\n"
@@ -147,6 +148,9 @@ private:
             }
             else if (arg == "--print" || arg == "-p") {
                 config_.print = true;
+            }
+            else if (arg == "--filtration-only") {
+                config_.filtration_only = true;
             }
             else if (arg == "--embedded" || arg == "-e") {
                 config_.embedded = true;
@@ -327,9 +331,47 @@ int main(int argc, char** argv) {
         std::vector<uint64_t> betti;
         std::vector<Cube> ctr;
 
+        using FClock = std::chrono::high_resolution_clock;
+
+        auto t_load_start = FClock::now();
         DenseCubicalGrids dcg(config);
         dcg.loadImage(config.embedded);
+        auto t_load_end = FClock::now();
         config.maxdim = std::min<uint8_t>(config.maxdim, dcg.dim - 1);
+
+        if (config.filtration_only) {
+            double load_ms = std::chrono::duration<double, std::milli>(t_load_end - t_load_start).count();
+            std::cout << "TIMING: load_ms=" << load_ms << std::endl;
+
+            std::vector<WritePairs> wp_dummy;
+            std::vector<Cube> ctr;
+            JointPairs jp(&dcg, wp_dummy, config);
+
+            // Enumerate and sort dim-1 cells (edges)
+            if (dcg.dim == 1) {
+                jp.enum_edges({0, 1}, ctr);
+            } else if (dcg.dim == 2) {
+                jp.enum_edges({0, 1}, ctr);
+            } else if (dcg.dim == 3) {
+                jp.enum_edges({0, 1, 2}, ctr);
+            } else {
+                jp.enum_edges({0, 1, 2, 3}, ctr);
+            }
+
+            // Enumerate and sort higher-dim cells
+            if (config.maxdim > 0) {
+                ComputePairs cp(&dcg, wp_dummy, config);
+                // Need a pivot_column_index for assemble; run a dummy compute_pairs_main
+                // to initialize it. Instead, just assemble directly.
+                if (config.maxdim > 1) {
+                    cp.assemble_columns_to_reduce(ctr, 2);
+                }
+                if (config.maxdim > 2) {
+                    cp.assemble_columns_to_reduce(ctr, 3);
+                }
+            }
+            return 0;
+        }
 
         // Compute persistent homology
         switch (config.method) {

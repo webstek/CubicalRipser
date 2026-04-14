@@ -25,6 +25,7 @@ struct Config {
 	int min_recursion_to_cache = 0; // num of minimum recursions for a reduced column to be cached
 	uint32_t cache_size = 1 << 31; // the maximum number of reduced columns to be cached
 	int maxiter = 1000000; // maximum number of iterations for each column (for debug)
+	bool filtration_only = false; // stop after filtration construction (skip PH computation)
 };
 
 #endif

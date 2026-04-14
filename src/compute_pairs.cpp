@@ -12,6 +12,7 @@ with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
 #include <algorithm>
+#include <chrono>
 #include <cstdint>
 #include <iostream>
 #include <queue>
@@ -270,6 +271,8 @@ void ComputePairs::assemble_columns_to_reduce(vector<Cube> &ctr, uint8_t _dim) {
       std::min(max_ctr_size, static_cast<size_t>(8000000));
   ctr.reserve(reserve_target);
   const double threshold = dcg->threshold;
+  using FClock = std::chrono::high_resolution_clock;
+  auto t_enum_start = FClock::now();
   for (uint8_t m = 0; m < max_m; ++m) {
     for (uint32_t w = 0; w < dcg->aw; ++w) {
       for (uint32_t z = 0; z < dcg->az; ++z) {
@@ -293,12 +296,19 @@ void ComputePairs::assemble_columns_to_reduce(vector<Cube> &ctr, uint8_t _dim) {
       }
     }
   }
-  clock_t start = clock();
+  auto t_enum_end = FClock::now();
+  auto t_sort_start = FClock::now();
   sort(ctr.begin(), ctr.end(), CubeComparator());
-  if (config->verbose) {
-    clock_t end = clock();
-    const double time =
-        static_cast<double>(end - start) / CLOCKS_PER_SEC * 1000.0;
-    cout << "Sorting took: " << time << endl;
+  auto t_sort_end = FClock::now();
+  if (config->filtration_only) {
+    double enum_ms = std::chrono::duration<double, std::milli>(t_enum_end - t_enum_start).count();
+    double sort_ms = std::chrono::duration<double, std::milli>(t_sort_end - t_sort_start).count();
+    cout << "TIMING: dim=" << static_cast<int>(dim)
+         << " enum_ms=" << enum_ms
+         << " sort_ms=" << sort_ms
+         << " cells=" << ctr.size() << endl;
+  } else if (config->verbose) {
+    double sort_ms = std::chrono::duration<double, std::milli>(t_sort_end - t_sort_start).count();
+    cout << "Sorting took: " << sort_ms << endl;
   }
 }
